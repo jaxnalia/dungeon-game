@@ -595,19 +595,19 @@ export class GameScene {
             }
         } else {
             // Regular strafing when right-clicking
-            if (this.keys['a']) {
+        if (this.keys['a']) {
                 moveDirection.x += Math.cos(angle);
                 moveDirection.z -= Math.sin(angle);
             }
             if (this.keys['d']) {
-                moveDirection.x -= Math.cos(angle);
-                moveDirection.z += Math.sin(angle);
-            }
+            moveDirection.x -= Math.cos(angle);
+            moveDirection.z += Math.sin(angle);
+        }
         }
 
         // Normalize movement vector if moving in multiple directions
         if (moveDirection.length() > 0) {
-            moveDirection.normalize();
+        moveDirection.normalize();
         }
 
         // Use the player's move method for consistent movement and collision detection
