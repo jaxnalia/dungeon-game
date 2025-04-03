@@ -1,16 +1,17 @@
 <script lang="ts">
     import { onMount, onDestroy } from 'svelte';
-    import { GameScene } from './game/Scene';
+    import { Game } from './game';
 
     let container: HTMLDivElement;
-    let gameScene: GameScene;
+    let game: Game;
 
     onMount(() => {
-        gameScene = new GameScene(container);
+        console.log('Game.svelte: Mounting game...');
+        game = new Game(container);
 
         const handleResize = () => {
             if (container) {
-                gameScene.resize(container.clientWidth, container.clientHeight);
+                game.scene.resize(container.clientWidth, container.clientHeight);
             }
         };
 
@@ -19,6 +20,13 @@
         return () => {
             window.removeEventListener('resize', handleResize);
         };
+    });
+
+    onDestroy(() => {
+        console.log('Game.svelte: Cleaning up game...');
+        if (game) {
+            game.cleanup();
+        }
     });
 </script>
 

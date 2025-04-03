@@ -1,18 +1,29 @@
 export class UI {
     container: HTMLElement;
-    menuElement: HTMLDivElement;
-    inventoryElement: HTMLDivElement;
-    hotbarElement: HTMLDivElement;
+    menuElement: HTMLDivElement = document.createElement('div');
+    inventoryElement: HTMLDivElement = document.createElement('div');
+    hotbarElement: HTMLDivElement = document.createElement('div');
+    notificationElement: HTMLDivElement = document.createElement('div');
+    notificationTimeout: number | null = null;
+    private messageContainer: HTMLElement;
 
     constructor(container: HTMLElement) {
         this.container = container;
         this.createMenu();
         this.createInventory();
         this.createHotbar();
+        this.createNotification();
+        this.messageContainer = document.createElement('div');
+        this.messageContainer.style.position = 'absolute';
+        this.messageContainer.style.top = '10px';
+        this.messageContainer.style.left = '10px';
+        this.messageContainer.style.color = 'white';
+        this.messageContainer.style.fontFamily = 'Arial, sans-serif';
+        this.messageContainer.style.zIndex = '1000';
+        this.container.appendChild(this.messageContainer);
     }
 
     createMenu() {
-        this.menuElement = document.createElement('div');
         this.menuElement.style.cssText = `
             position: absolute;
             top: 50%;
@@ -33,7 +44,6 @@ export class UI {
     }
 
     createInventory() {
-        this.inventoryElement = document.createElement('div');
         this.inventoryElement.style.cssText = `
             position: absolute;
             top: 50%;
@@ -64,7 +74,6 @@ export class UI {
     }
 
     createHotbar() {
-        this.hotbarElement = document.createElement('div');
         this.hotbarElement.style.cssText = `
             position: absolute;
             bottom: 20px;
@@ -114,6 +123,43 @@ export class UI {
         this.container.appendChild(this.hotbarElement);
     }
 
+    createNotification() {
+        this.notificationElement.style.cssText = `
+            position: absolute;
+            top: 20px;
+            left: 50%;
+            transform: translateX(-50%);
+            background: rgba(0, 0, 0, 0.8);
+            padding: 10px 20px;
+            border-radius: 5px;
+            color: white;
+            font-size: 16px;
+            opacity: 0;
+            transition: opacity 0.3s ease;
+            pointer-events: none;
+            text-align: center;
+            white-space: nowrap;
+        `;
+        this.container.appendChild(this.notificationElement);
+    }
+
+    showNotification(message: string, duration: number = 3000) {
+        // Clear any existing timeout
+        if (this.notificationTimeout !== null) {
+            clearTimeout(this.notificationTimeout);
+        }
+
+        // Update and show the notification
+        this.notificationElement.textContent = message;
+        this.notificationElement.style.opacity = '1';
+
+        // Hide the notification after duration
+        this.notificationTimeout = window.setTimeout(() => {
+            this.notificationElement.style.opacity = '0';
+            this.notificationTimeout = null;
+        }, duration);
+    }
+
     toggleMenu(show: boolean) {
         this.menuElement.style.display = show ? 'block' : 'none';
     }
@@ -124,5 +170,35 @@ export class UI {
 
     resize(width: number, height: number) {
         // Update UI positions if needed
+    }
+
+    public showMessage(message: string, duration: number = 3000) {
+        const messageElement = document.createElement('div');
+        messageElement.textContent = message;
+        messageElement.style.backgroundColor = 'rgba(0, 0, 0, 0.7)';
+        messageElement.style.padding = '10px';
+        messageElement.style.marginBottom = '5px';
+        messageElement.style.borderRadius = '5px';
+        messageElement.style.opacity = '0';
+        messageElement.style.transition = 'opacity 0.3s';
+
+        this.messageContainer.appendChild(messageElement);
+
+        // Fade in
+        setTimeout(() => {
+            messageElement.style.opacity = '1';
+        }, 10);
+
+        // Fade out and remove
+        setTimeout(() => {
+            messageElement.style.opacity = '0';
+            setTimeout(() => {
+                this.messageContainer.removeChild(messageElement);
+            }, 300);
+        }, duration);
+    }
+
+    public cleanup() {
+        this.container.removeChild(this.messageContainer);
     }
 }

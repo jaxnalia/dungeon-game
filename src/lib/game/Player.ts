@@ -44,9 +44,9 @@ export class Player {
         this.mesh.position.y = 1.5; // Adjust for capsule height
 
         // Movement properties
-        this.speed = 100;
+        this.speed = 500;
         this.jumpForce = 8;
-        this.gravity = 20;
+        this.gravity = 5;
         this.velocity = new THREE.Vector3();
         this.isGrounded = false;
         this.wasGrounded = false;
@@ -89,50 +89,58 @@ export class Player {
         // Update timers
         this.updateTimers(dt);
 
-        // Apply gravity
-        this.velocity.y -= this.gravity * dt;
-        this.velocity.y = Math.max(this.velocity.y, -this.maxFallSpeed);
+        // Store original position
+        const originalPosition = this.mesh.position.clone();
 
-        // Check if grounded using raycast
-        this.isGrounded = this.checkGrounded(walls);
-
-        // Handle coyote time
-        if (this.isGrounded) {
-            this.coyoteTimeCounter = this.coyoteTime;
-        } else {
-            this.coyoteTimeCounter -= dt;
+        // Apply gravity if not grounded
+        if (!this.isGrounded) {
+            this.velocity.y -= this.gravity * dt;
+            this.velocity.y = Math.max(this.velocity.y, -this.maxFallSpeed);
         }
 
-        // Handle jump buffer
-        if (this.jumpBufferCounter > 0) {
-            this.jumpBufferCounter -= dt;
-            if (this.coyoteTimeCounter > 0) {
-                this.velocity.y = this.jumpForce;
-                this.isGrounded = false;
-                this.coyoteTimeCounter = 0;
-                this.jumpBufferCounter = 0;
-            }
-        }
+        // Update position based on velocity
+        const movement = this.velocity.clone().multiplyScalar(dt);
+        
+        // Split movement into components and check collisions separately
+        const horizontalMovement = new THREE.Vector3(movement.x, 0, movement.z);
+        const verticalMovement = new THREE.Vector3(0, movement.y, 0);
 
-        // Update position
-        this.mesh.position.add(this.velocity.clone().multiplyScalar(dt));
-
-        // Handle collisions
+        // Apply horizontal movement first
+        this.mesh.position.add(horizontalMovement);
         this.handleCollisions(walls);
 
-        // Apply friction
-        if (this.isGrounded) {
-            // Strong ground friction (increased by 5x)
-            this.velocity.x *= Math.pow(0.0000001, dt);
-            this.velocity.z *= Math.pow(0.0000001, dt);
-        } else {
-            // Reduced air friction
-            this.velocity.x *= Math.pow(0.95, dt);
-            this.velocity.z *= Math.pow(0.95, dt);
-        }
+        // Then apply vertical movement
+        this.mesh.position.add(verticalMovement);
+        this.handleCollisions(walls);
 
         // Update grounded state
         this.updateGroundedState(walls);
+    }
+
+    private checkCollisionPenetration(walls: THREE.Mesh[]): { normal: THREE.Vector3, depth: number } | null {
+        const capsuleRadius = 0.5;
+        const capsuleHeight = 1;
+        
+        for (const wall of walls) {
+            const wallBox = new THREE.Box3().setFromObject(wall);
+            const playerBox = new THREE.Box3().setFromObject(this.mesh);
+            
+            if (wallBox.intersectsBox(playerBox)) {
+                const wallCenter = wallBox.getCenter(new THREE.Vector3());
+                const playerCenter = playerBox.getCenter(new THREE.Vector3());
+                
+                // Calculate penetration normal and depth
+                const normal = new THREE.Vector3()
+                    .subVectors(playerCenter, wallCenter)
+                    .normalize();
+                
+                const depth = capsuleRadius - playerCenter.distanceTo(wallCenter);
+                
+                return { normal, depth };
+            }
+        }
+        
+        return null;
     }
 
     updateTimers(dt: number) {
@@ -188,72 +196,66 @@ export class Player {
     }
 
     handleCollisions(walls: THREE.Mesh[]) {
-        // Create capsule collider for player
-        const capsuleHeight = 1;
         const capsuleRadius = 0.5;
-        const playerBottom = new THREE.Vector3(
-            this.mesh.position.x,
-            this.mesh.position.y - capsuleHeight/2,
-            this.mesh.position.z
-        );
-        const playerTop = new THREE.Vector3(
-            this.mesh.position.x,
-            this.mesh.position.y + capsuleHeight/2,
-            this.mesh.position.z
-        );
-
-        // Check collisions with each wall
+        const capsuleHeight = 1;
+        
+        // Create points for capsule collision
+        const capsuleBottom = this.mesh.position.clone().sub(new THREE.Vector3(0, capsuleHeight/2, 0));
+        const capsuleTop = this.mesh.position.clone().add(new THREE.Vector3(0, capsuleHeight/2, 0));
+        
         for (const wall of walls) {
-            // Get wall bounds
-            const wallBox = new THREE.Box3().setFromObject(wall);
-            const wallSize = wallBox.getSize(new THREE.Vector3());
-            const wallCenter = wallBox.getCenter(new THREE.Vector3());
-
-            // Calculate closest point on wall to capsule
-            const closestPoint = new THREE.Vector3(
-                Math.max(wallCenter.x - wallSize.x/2, Math.min(playerBottom.x, wallCenter.x + wallSize.x/2)),
-                Math.max(wallCenter.y - wallSize.y/2, Math.min(playerBottom.y, wallCenter.y + wallSize.y/2)),
-                Math.max(wallCenter.z - wallSize.z/2, Math.min(playerBottom.z, wallCenter.z + wallSize.z/2))
-            );
-
-            // Calculate distance from capsule to wall
-            const distance = playerBottom.distanceTo(closestPoint);
-
-            // If collision detected
+            // Get wall collider
+            const wallBox = wall.userData.collider as THREE.Box3;
+            if (!wallBox) {
+                console.warn('Wall missing collider:', wall);
+                continue;
+            }
+            
+            // Update wall collider to current position
+            wallBox.setFromObject(wall);
+            
+            // Check capsule-box collision
+            const closestPoint = new THREE.Vector3();
+            wallBox.clampPoint(this.mesh.position, closestPoint);
+            
+            const distance = this.mesh.position.distanceTo(closestPoint);
+            
             if (distance < capsuleRadius) {
+                console.log('Collision detected with wall:', {
+                    wallPosition: wall.position,
+                    playerPosition: this.mesh.position,
+                    distance,
+                    closestPoint
+                });
+                
                 // Calculate collision normal
-                const collisionNormal = new THREE.Vector3()
-                    .subVectors(playerBottom, closestPoint)
+                const normal = this.mesh.position.clone()
+                    .sub(closestPoint)
                     .normalize();
-
+                
                 // Calculate penetration depth
                 const penetration = capsuleRadius - distance;
-
-                // Calculate relative velocity
-                const relativeVelocity = this.velocity.clone();
-
-                // Calculate impulse
-                const restitution = 0.2; // Bounciness factor
-                const j = -(1 + restitution) * relativeVelocity.dot(collisionNormal);
-
-                // Apply impulse
-                this.velocity.addScaledVector(collisionNormal, j);
-
-                // Resolve penetration
-                const correction = collisionNormal.clone().multiplyScalar(penetration);
-                this.mesh.position.add(correction);
-
-                // Handle sliding
-                const slidePlaneNormal = collisionNormal.clone();
-                const slideVelocity = this.velocity.clone();
-                const slideComponent = slideVelocity.dot(slidePlaneNormal);
-                slideVelocity.sub(slidePlaneNormal.multiplyScalar(slideComponent));
-                this.velocity.copy(slideVelocity);
-
-                // Update grounded state if collision is from below
-                if (collisionNormal.y > 0.5) {
-                    this.isGrounded = true;
-                    this.velocity.y = 0;
+                
+                // Resolve collision by moving player out of wall
+                this.mesh.position.add(normal.multiplyScalar(penetration + 0.01)); // Add small offset to prevent sticking
+                
+                // Update velocity
+                const dot = this.velocity.dot(normal);
+                if (dot < 0) {
+                    // Moving into the wall, reflect velocity
+                    this.velocity.sub(normal.multiplyScalar(2 * dot));
+                    
+                    // Apply friction
+                    if (normal.y > 0.5) { // Ground collision
+                        this.isGrounded = true;
+                        this.velocity.y = 0;
+                        this.velocity.x *= 0.8;
+                        this.velocity.z *= 0.8;
+                    } else {
+                        // Wall collision - apply friction and prevent wall sliding
+                        this.velocity.x *= 0.5;
+                        this.velocity.z *= 0.5;
+                    }
                 }
             }
         }
@@ -265,18 +267,19 @@ export class Player {
     }
 
     checkGrounded(walls: THREE.Mesh[]): boolean {
-        // Create ray from player bottom
-        const rayOrigin = new THREE.Vector3(
-            this.mesh.position.x,
-            this.mesh.position.y - 1, // Slightly below player
-            this.mesh.position.z
-        );
+        const rayOrigin = this.mesh.position.clone();
+        rayOrigin.y -= 0.9; // Slightly less than capsule height
+        
         const rayDirection = new THREE.Vector3(0, -1, 0);
         const ray = new THREE.Ray(rayOrigin, rayDirection);
-
-        // Check for ground collision
+        
         for (const wall of walls) {
-            const wallBox = new THREE.Box3().setFromObject(wall);
+            const wallBox = wall.userData.collider as THREE.Box3;
+            if (!wallBox) continue;
+            
+            // Update wall collider to current position
+            wallBox.setFromObject(wall);
+            
             const intersection = ray.intersectBox(wallBox, new THREE.Vector3());
             if (intersection) {
                 const distance = rayOrigin.distanceTo(intersection);
@@ -285,6 +288,7 @@ export class Player {
                 }
             }
         }
+        
         return false;
     }
 
