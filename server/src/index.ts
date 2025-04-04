@@ -1,5 +1,7 @@
 import { WebSocketServer, WebSocket } from 'ws';
 import { DungeonGenerator } from './DungeonGenerator';
+import * as https from 'https';
+import * as fs from 'fs';
 
 interface Player {
     id: string;
@@ -85,7 +87,13 @@ interface Hallway {
     direction: 'horizontal' | 'vertical';
 }
 
-const wss = new WebSocketServer({ port: 8080 });
+const wss = new WebSocketServer({ 
+    port: 8080,
+    verifyClient: (info, callback) => {
+        // Allow connections from any origin
+        callback(true);
+    }
+});
 const players = new Map<string, Player>();
 const generator = new DungeonGenerator();
 const MOVE_RATE_LIMIT = 100; // milliseconds between move updates
@@ -145,8 +153,15 @@ function validateMessage(message: any): message is Message {
     }
 }
 
-wss.on('connection', (ws: WebSocket) => {
-    console.log('New client connected');
+wss.on('connection', (ws: WebSocket, req) => {
+    console.log('New client connected from:', req.socket.remoteAddress);
+    
+    // Set up CORS headers for the WebSocket connection
+    ws.on('headers', (headers) => {
+        headers.push('Access-Control-Allow-Origin: *');
+        headers.push('Access-Control-Allow-Methods: GET, POST, OPTIONS');
+        headers.push('Access-Control-Allow-Headers: Content-Type');
+    });
 
     // Generate a unique ID for the player
     const playerId = Math.random().toString(36).substring(2, 15);
