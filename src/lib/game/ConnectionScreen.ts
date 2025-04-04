@@ -30,14 +30,14 @@ export class ConnectionScreen {
         this.connectionDiv.appendChild(title);
 
         const infoText = document.createElement('p');
-        infoText.textContent = 'For local development, use "localhost". For remote servers, use the server domain.';
+        infoText.textContent = 'For local development, use "localhost". For remote servers, use the server domain or IP address.';
         infoText.style.marginBottom = '15px';
         infoText.style.fontSize = '14px';
         this.connectionDiv.appendChild(infoText);
 
-        // Add a warning about connecting to non-secure servers
+        // Add a warning about mixed content blocking
         const warningText = document.createElement('p');
-        warningText.textContent = 'Note: When connecting to a server without SSL, use ws:// protocol.';
+        warningText.textContent = 'Note: When connecting from HTTPS to a non-SSL server, your browser may block the connection. Try using the IP address directly.';
         warningText.style.marginBottom = '15px';
         warningText.style.fontSize = '14px';
         warningText.style.color = '#FFA500';
@@ -72,7 +72,7 @@ export class ConnectionScreen {
         this.connectionDiv.appendChild(portInput);
 
         const protocolInfo = document.createElement('p');
-        protocolInfo.textContent = `Using ws:// connection (non-secure)`;
+        protocolInfo.textContent = `Using ws:// connection (non-secure) - Multiple connection strategies will be attempted`;
         protocolInfo.style.marginBottom = '15px';
         protocolInfo.style.fontSize = '14px';
         protocolInfo.style.color = '#FFA500';

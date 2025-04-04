@@ -21,13 +21,58 @@ export class MultiplayerManager {
     public connect(ip: string, port: number) {
         console.log('MultiplayerManager: Attempting to connect to', ip, port);
         try {
-            // Force ws:// protocol for AWS server without SSL
-            // This allows connecting to non-secure servers from a secure client
+            // Try different connection strategies
+            this.tryConnect(ip, port);
+        } catch (error) {
+            console.error('MultiplayerManager: Failed to connect:', error);
+            this.ui.showMessage('Failed to connect to server');
+        }
+    }
+
+    private tryConnect(ip: string, port: number, attempt = 1) {
+        console.log(`MultiplayerManager: Connection attempt ${attempt}`);
+        
+        // Strategy 1: Direct ws:// connection
+        if (attempt === 1) {
             const protocol = 'ws://';
             const wsUrl = `${protocol}${ip}:${port}`;
-            console.log('MultiplayerManager: Creating WebSocket connection to', wsUrl);
-            
-            // Add more detailed error handling
+            console.log('MultiplayerManager: Trying direct ws:// connection to', wsUrl);
+            this.createWebSocket(wsUrl, ip, port, attempt);
+        }
+        // Strategy 2: Try with IP address if domain was used
+        else if (attempt === 2 && ip.includes('.')) {
+            // If it's a domain, try to resolve it to an IP
+            console.log('MultiplayerManager: Trying to resolve domain to IP');
+            this.resolveDomainToIP(ip, port, attempt);
+        }
+        // Strategy 3: Try with a different port format
+        else if (attempt === 3) {
+            const protocol = 'ws://';
+            const wsUrl = `${protocol}${ip}:${port}/ws`;
+            console.log('MultiplayerManager: Trying with path /ws to', wsUrl);
+            this.createWebSocket(wsUrl, ip, port, attempt);
+        }
+        // Strategy 4: Try with a different protocol format
+        else if (attempt === 4) {
+            const wsUrl = `ws://${ip}:${port}`;
+            console.log('MultiplayerManager: Trying with explicit protocol to', wsUrl);
+            this.createWebSocket(wsUrl, ip, port, attempt);
+        }
+        // If all attempts fail, show an error message
+        else {
+            console.error('MultiplayerManager: All connection attempts failed');
+            this.ui.showMessage('Failed to connect to server after multiple attempts');
+        }
+    }
+
+    private resolveDomainToIP(domain: string, port: number, attempt: number) {
+        // This is a simplified approach - in a real app, you might use a DNS resolver
+        // For now, we'll just try with the domain as is
+        this.tryConnect(domain, port, attempt + 1);
+    }
+
+    private createWebSocket(wsUrl: string, ip: string, port: number, attempt: number) {
+        try {
             this.socket = new WebSocket(wsUrl);
             
             this.socket.onopen = () => {
@@ -48,11 +93,20 @@ export class MultiplayerManager {
                 this.stopKeepAlive();
                 this.ui.showMessage(`Disconnected from server: ${event.reason || 'Connection closed'}`);
                 this.players.clear();
-                // Attempt to reconnect after a delay
-                setTimeout(() => {
-                    console.log('MultiplayerManager: Attempting to reconnect...');
-                    this.connect(ip, port);
-                }, 5000);
+                
+                // Try next connection strategy
+                if (attempt < 4) {
+                    console.log('MultiplayerManager: Trying next connection strategy...');
+                    setTimeout(() => {
+                        this.tryConnect(ip, port, attempt + 1);
+                    }, 1000);
+                } else {
+                    // After all attempts, try to reconnect with the original strategy
+                    setTimeout(() => {
+                        console.log('MultiplayerManager: Attempting to reconnect with original strategy...');
+                        this.tryConnect(ip, port, 1);
+                    }, 5000);
+                }
             };
 
             this.socket.onerror = (error) => {
@@ -61,8 +115,14 @@ export class MultiplayerManager {
                 this.ui.showMessage('Connection error - Check console for details');
             };
         } catch (error) {
-            console.error('MultiplayerManager: Failed to connect:', error);
-            this.ui.showMessage('Failed to connect to server');
+            console.error('MultiplayerManager: Error creating WebSocket:', error);
+            // Try next connection strategy
+            if (attempt < 4) {
+                console.log('MultiplayerManager: Trying next connection strategy...');
+                setTimeout(() => {
+                    this.tryConnect(ip, port, attempt + 1);
+                }, 1000);
+            }
         }
     }
 
