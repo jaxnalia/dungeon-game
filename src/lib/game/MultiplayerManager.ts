@@ -21,18 +21,13 @@ export class MultiplayerManager {
     public connect(ip: string, port: number) {
         console.log('MultiplayerManager: Attempting to connect to', ip, port);
         try {
-            // Determine if we're on HTTPS and use the appropriate protocol
-            const protocol = window.location.protocol === 'https:' ? 'wss://' : 'ws://';
+            // Force ws:// protocol for AWS server without SSL
+            // This allows connecting to non-secure servers from a secure client
+            const protocol = 'ws://';
             const wsUrl = `${protocol}${ip}:${port}`;
             console.log('MultiplayerManager: Creating WebSocket connection to', wsUrl);
             
-            // Close existing socket if any
-            if (this.socket) {
-                console.log('MultiplayerManager: Closing existing socket');
-                this.socket.close();
-                this.socket = null;
-            }
-            
+            // Add more detailed error handling
             this.socket = new WebSocket(wsUrl);
             
             this.socket.onopen = () => {
@@ -44,12 +39,8 @@ export class MultiplayerManager {
             this.socket.onmessage = (event) => {
                 console.log('MultiplayerManager: Received message:', event.data);
                 this.lastMessageTime = Date.now();
-                try {
-                    const data = JSON.parse(event.data);
-                    this.handleMessage(data);
-                } catch (error) {
-                    console.error('MultiplayerManager: Error parsing message:', error);
-                }
+                const data = JSON.parse(event.data);
+                this.handleMessage(data);
             };
 
             this.socket.onclose = (event) => {
@@ -57,24 +48,21 @@ export class MultiplayerManager {
                 this.stopKeepAlive();
                 this.ui.showMessage(`Disconnected from server: ${event.reason || 'Connection closed'}`);
                 this.players.clear();
-                
-                // Only attempt to reconnect if it wasn't a normal closure
-                if (event.code !== 1000) {
-                    setTimeout(() => {
-                        console.log('MultiplayerManager: Attempting to reconnect...');
-                        this.connect(ip, port);
-                    }, 5000);
-                }
+                // Attempt to reconnect after a delay
+                setTimeout(() => {
+                    console.log('MultiplayerManager: Attempting to reconnect...');
+                    this.connect(ip, port);
+                }, 5000);
             };
 
             this.socket.onerror = (error) => {
                 console.error('MultiplayerManager: WebSocket error:', error);
                 this.stopKeepAlive();
-                this.ui.showMessage('Connection error - check server address and try again');
+                this.ui.showMessage('Connection error - Check console for details');
             };
         } catch (error) {
             console.error('MultiplayerManager: Failed to connect:', error);
-            this.ui.showMessage('Failed to connect to server - check server address and try again');
+            this.ui.showMessage('Failed to connect to server');
         }
     }
 

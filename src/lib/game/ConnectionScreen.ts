@@ -35,6 +35,14 @@ export class ConnectionScreen {
         infoText.style.fontSize = '14px';
         this.connectionDiv.appendChild(infoText);
 
+        // Add a warning about connecting to non-secure servers
+        const warningText = document.createElement('p');
+        warningText.textContent = 'Note: When connecting to a server without SSL, use ws:// protocol.';
+        warningText.style.marginBottom = '15px';
+        warningText.style.fontSize = '14px';
+        warningText.style.color = '#FFA500';
+        this.connectionDiv.appendChild(warningText);
+
         const ipLabel = document.createElement('label');
         ipLabel.textContent = 'Server IP:';
         ipLabel.style.display = 'block';
@@ -64,10 +72,10 @@ export class ConnectionScreen {
         this.connectionDiv.appendChild(portInput);
 
         const protocolInfo = document.createElement('p');
-        protocolInfo.textContent = `Using ${window.location.protocol === 'https:' ? 'secure (wss://)' : 'standard (ws://)'} connection`;
+        protocolInfo.textContent = `Using ws:// connection (non-secure)`;
         protocolInfo.style.marginBottom = '15px';
         protocolInfo.style.fontSize = '14px';
-        protocolInfo.style.color = window.location.protocol === 'https:' ? '#4CAF50' : '#FFA500';
+        protocolInfo.style.color = '#FFA500';
         this.connectionDiv.appendChild(protocolInfo);
 
         const connectButton = document.createElement('button');
