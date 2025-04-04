@@ -21,7 +21,9 @@ export class MultiplayerManager {
     public connect(ip: string, port: number) {
         console.log('MultiplayerManager: Attempting to connect to', ip, port);
         try {
-            const wsUrl = `ws://${ip}:${port}`;
+            // Use wss:// for remote servers, ws:// for localhost
+            const protocol = ip === 'localhost' || ip === '127.0.0.1' ? 'ws://' : 'wss://';
+            const wsUrl = `${protocol}${ip}${port === 443 ? '' : `:${port}`}`;
             console.log('MultiplayerManager: Creating WebSocket connection to', wsUrl);
             this.socket = new WebSocket(wsUrl);
             
