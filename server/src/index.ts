@@ -85,15 +85,7 @@ interface Hallway {
     direction: 'horizontal' | 'vertical';
 }
 
-// Create WebSocket server with options for secure connections
-const wss = new WebSocketServer({ 
-    port: process.env.PORT ? parseInt(process.env.PORT, 10) : 8080,
-    // Add CORS headers for WebSocket connections
-    verifyClient: (info, callback) => {
-        // Allow connections from any origin
-        callback(true);
-    }
-});
+const wss = new WebSocketServer({ port: 8080 });
 const players = new Map<string, Player>();
 const generator = new DungeonGenerator();
 const MOVE_RATE_LIMIT = 100; // milliseconds between move updates

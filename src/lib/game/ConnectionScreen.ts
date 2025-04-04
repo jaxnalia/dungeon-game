@@ -29,6 +29,12 @@ export class ConnectionScreen {
         title.style.marginBottom = '20px';
         this.connectionDiv.appendChild(title);
 
+        const infoText = document.createElement('p');
+        infoText.textContent = 'For local development, use "localhost". For remote servers, use the server domain.';
+        infoText.style.marginBottom = '15px';
+        infoText.style.fontSize = '14px';
+        this.connectionDiv.appendChild(infoText);
+
         const ipLabel = document.createElement('label');
         ipLabel.textContent = 'Server IP:';
         ipLabel.style.display = 'block';
@@ -56,6 +62,13 @@ export class ConnectionScreen {
         portInput.style.padding = '5px';
         portInput.style.marginBottom = '20px';
         this.connectionDiv.appendChild(portInput);
+
+        const protocolInfo = document.createElement('p');
+        protocolInfo.textContent = `Using ${window.location.protocol === 'https:' ? 'secure (wss://)' : 'standard (ws://)'} connection`;
+        protocolInfo.style.marginBottom = '15px';
+        protocolInfo.style.fontSize = '14px';
+        protocolInfo.style.color = window.location.protocol === 'https:' ? '#4CAF50' : '#FFA500';
+        this.connectionDiv.appendChild(protocolInfo);
 
         const connectButton = document.createElement('button');
         connectButton.textContent = 'Connect';
